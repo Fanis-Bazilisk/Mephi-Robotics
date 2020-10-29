@@ -1,4 +1,5 @@
 //Подключение к ардуино через библиотеку jssc 2.9.2
+//Подключение и чтение
 package newtest;
 
 import jssc.SerialPort;
