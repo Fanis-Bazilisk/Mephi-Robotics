@@ -8,8 +8,157 @@ import jssc.SerialPortEvent;
 import jssc.SerialPortEventListener;
 import jssc.SerialPortException;
 
-class PortReader implements SerialPortEventListener {
+import java.util.TreeSet; 
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
+class PortReader implements SerialPortEventListener {
+	
+	// Индексируем значения 
+ static class Pair implements Comparable<Pair> { 
+     private int value, index; 
+
+     // Конструктор пар
+     public Pair(int v, int p) 
+     { 
+         value = v; 
+         index = p; 
+     } 
+
+	// Создаем древо для поиска значения по индексу (создаем пары)
+     @Override
+     public int compareTo(Pair o) 
+     { 
+
+         if (index == o.index) { 
+             return 0; 
+         } 
+         else if (value == o.value) { 
+             return Integer.compare(index, o.index); 
+         } 
+         else { 
+             return Integer.compare(value, o.value); 
+         } 
+     } 
+
+	// Возвращаем значение для текущего объекта
+     public int value() 
+     { 
+         return value; 
+     } 
+
+	// Обновляем значение и его положение для одного и того же объекта (экономия места)
+     public void renew(int v, int p) 
+     { 
+         value = v; 
+         index = p; 
+     } 
+
+     @Override
+     public String toString() 
+     { 
+         return String.format("(%d, %d)", value, index); 
+     } 
+ } 
+
+	 // Считаем медиану для текущего окна массива
+ static void printMedian(TreeSet<Pair> minSet, 
+                         TreeSet<Pair> maxSet, int window) 
+ { 
+
+	// Если размер массива четный, то медиана будет средним значением между двумя средними числами
+     if (window % 2 == 0) { 
+         System.out.println((minSet.last().value() 
+                           + maxSet.first().value()) 
+                          / 2.0); 
+         //System.out.print(" "); 
+     } 
+
+	// Иначе берем среднее число
+     else { 
+         System.out.println(minSet.size() > maxSet.size() 
+                              ? minSet.last().value() 
+                              : maxSet.first().value()); 
+        // System.out.print(" "); 
+     } 
+ } 
+
+	 // функция для расчета медианы по массиву, которым мы ограничиваем переменной k
+ static void StartMedian(int arr[], int k) 
+ { 
+     TreeSet<Pair> minSet = new TreeSet<>(); 
+     TreeSet<Pair> maxSet = new TreeSet<>(); 
+
+	// Обновляем пары, чтобы не потерять их (вместо того, чтобы создавать новые пары)
+     Pair[] medianPairs = new Pair[k]; 
+
+     for (int i = 0; i < k; i++) { 
+         medianPairs[i] = new Pair(arr[i], i); 
+     } 
+
+	// Чит, подсмотрел в англоязычном форуме 
+     for (int i = 0; i < k / 2; i++) { 
+         maxSet.add(medianPairs[i]); 
+     } 
+
+     for (int i = k / 2; i < k; i++) { 
+
+	// Критерии поиска для выбора пары
+         if (arr[i] < maxSet.first().value()) { 
+             minSet.add(medianPairs[i]); 
+         } 
+         else { 
+             minSet.add(maxSet.pollFirst()); 
+             maxSet.add(medianPairs[i]); 
+         } 
+     } 
+
+     printMedian(minSet, maxSet, k); 
+
+     for (int i = k; i < arr.length; i++) { 
+
+	// Создание пары в первом массиве
+         Pair temp = medianPairs[i % k]; 
+         if (temp.value() <= minSet.last().value()) { 
+
+	// Удаляем первые 2 массива
+             minSet.remove(temp); 
+
+	// Обновляем массив с начала до конца
+             temp.renew(arr[i], i); 
+
+	// Критерии поиска для добавления пары прошедшие первый критерий с обновлением
+             if (temp.value() < maxSet.first().value()) { 
+                 minSet.add(temp); 
+             } 
+             else { 
+                 minSet.add(maxSet.pollFirst()); 
+                 maxSet.add(temp); 
+             } 
+         } 
+         else { 
+             maxSet.remove(temp); 
+             temp.renew(arr[i], i); 
+
+	// Снова критерии поиска для добавления без обновления
+             if (temp.value() > minSet.last().value()) { 
+                 maxSet.add(temp); 
+             } 
+             else { 
+                 maxSet.add(minSet.pollLast()); 
+                 minSet.add(temp); 
+             } 
+         } 
+
+         printMedian(minSet, maxSet, k); 
+     } 
+ } 
+ 	
+
+	
     SerialPort serialPort;
     public PortReader(SerialPort serialPort) {
         this.serialPort = serialPort;
@@ -19,9 +168,31 @@ class PortReader implements SerialPortEventListener {
     public void serialEvent(SerialPortEvent event) {
         if (event.isRXCHAR() && event.getEventValue() > 0) {
             try {
+            	String[] arr = new String[] {};            	
+            	
+            	List<Integer> vowels = new ArrayList<>();
+            	
                 String receivedData = serialPort.readString(event.getEventValue());
-                System.out.print(receivedData);
+                
+                
+                arr = Arrays.copyOf(arr, arr.length + 1);
+                arr[arr.length - 1] = receivedData;
+                for (int i = 0; i < arr.length; ++i) {
+                	for (int j = 0; j < arr.length; j++) {
+                       	Pattern p = Pattern.compile("[0-9]+");
+                    	Matcher m = p.matcher(arr[j]);
+                    	while (m.find()) {
+                    	    int n = Integer.parseInt(m.group());
+                    	    vowels.add(n);
+                    					 }
+                	                                     }
+                									  }
+                
+                int [] ints = vowels.stream().mapToInt(Integer::intValue).toArray();
+                int k = 2; 
 
+                StartMedian(ints, k);
+                
             } catch (SerialPortException ex) {
                 System.out.println("Error");
             }
