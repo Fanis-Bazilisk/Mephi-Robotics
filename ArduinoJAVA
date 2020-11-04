@@ -1,0 +1,29 @@
+//Подключение к ардуино через библиотеку jssc 2.9.2
+//Настройка
+package newtest;
+import jssc.*;
+
+public class ArduinoJAVA {
+
+    public static SerialPort serialPort = new SerialPort("COM3");
+    public static PortReader portreader = new PortReader(serialPort);
+    public static boolean ready = false;
+
+    public static void main(String[] args) {
+        try {
+            serialPort.openPort();
+            serialPort.setParams(SerialPort.BAUDRATE_9600, 
+                                 SerialPort.DATABITS_8,
+                                 SerialPort.STOPBITS_1,
+                                 SerialPort.PARITY_NONE);
+            serialPort.setFlowControlMode(SerialPort.FLOWCONTROL_NONE);
+            serialPort.addEventListener(portreader, SerialPort.MASK_RXCHAR);
+            while(!ready) {}
+        }
+        catch (SerialPortException ex) {
+            System.out.println(ex);
+        }   
+
+    }
+
+}
